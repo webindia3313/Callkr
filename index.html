@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra Calling Dashboard</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #0a0b10;
+            --card-bg: rgba(20, 22, 37, 0.7);
+            --neon-blue: #00f3ff;
+            --neon-purple: #b900ff;
+            --neon-green: #39ff14;
+            --neon-red: #ff3131;
+            --text-color: #ffffff;
+            --text-secondary: #8a8f98;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 50%, #14172f 0%, #0a0b10 100%);
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            max-height: 850px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.15), inset 0 0 15px rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 480px) {
+            .app-container {
+                max-height: 100vh;
+                border-radius: 0;
+                border: none;
+            }
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            padding: 24px;
+            overflow-y: auto;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            transform: scale(0.95);
+        }
+
+        .screen.active {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Glowing Effects & Headers */
+        .glowing-title {
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+            letter-spacing: 1px;
+        }
+
+        /* Input Controls */
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4), inset 0 0 5px rgba(0, 243, 255, 0.2);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(185, 0, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 0 25px var(--neon-blue);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--neon-blue);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+
+        /* Lists and Tabs */
+        .search-bar {
+            margin-bottom: 20px;
+        }
+
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .list-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .list-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(0, 243, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 243, 255, 0.1);
+        }
+
+        .user-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .status-online { color: var(--neon-green); background: var(--neon-green); }
+
+        .call-actions button {
+            background: transparent;
+            border: none;
+            color: var(--neon-blue);
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-left: 10px;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .call-actions button:hover {
+            background: rgba(0, 243, 255, 0.2);
+            color: #fff;
+        }
+
+        /* Keypad UI */
+        .keypad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            max-width: 320px;
+            margin: 0 auto 20px auto;
+        }
+
+        .keypad-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            width: 75px;
+            height: 75px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0 auto;
+        }
+
+        .keypad-btn:active {
+            background: var(--neon-blue);
+            box-shadow: 0 0 20px var(--neon-blue);
+            border-color: #fff;
+            color: #000;
+        }
+
+        .keypad-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .keypad-letters {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        /* Calling Interface Screen */
+        .calling-screen {
+            background: linear-gradient(180deg, #0d0f1d 0%, #05060b 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 40px 24px;
+            z-index: 100;
+        }
+
+        .video-container {
+            width: 100%;
+            height: 50%;
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        .remote-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .local-video {
+            width: 100px;
+            height: 140px;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+            background: #222;
+        }
+
+        .caller-info {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .caller-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        .call-status {
+            color: var(--neon-blue);
+            animation: pulse 1.5s infinite;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .call-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 20px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            width: 65px;
+            height: 65px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-size: 1.2rem;
+            margin: 0 auto;
+        }
+
+        .control-btn.active {
+            background: var(--neon-purple);
+            box-shadow: 0 0 15px var(--neon-purple);
+            border-color: #fff;
+        }
+
+        .control-btn.end-call {
+            background: var(--neon-red);
+            box-shadow: 0 4px 15px rgba(255, 49, 49, 0.4);
+            grid-column: span 3;
+            width: 75px;
+            height: 75px;
+            margin-top: 10px;
+        }
+
+        .control-btn.end-call:hover {
+            box-shadow: 0 0 25px var(--neon-red);
+        }
+
+        /* Navigation Footer */
+        .bottom-nav {
+            display: flex;
+            background: rgba(10, 11, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px 10px;
+            justify-content: space-around;
+        }
+
+        .nav-item {
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .nav-item.active {
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+        }
+
+        .nav-item svg {
+            width: 22px;
+            height: 22px;
+            margin-bottom: 4px;
+            fill: currentColor;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- LOGIN SCREEN -->
+    <div id="screen-login" class="screen active">
+        <h2 class="glowing-title">Ultra Link Login</h2>
+        <div class="input-group">
+            <input type="text" id="login-phone" placeholder="10 Digit Phone Number" maxlength="10">
+        </div>
+        <div class="input-group">
+            <input type="email" id="login-email" placeholder="Gmail ID (e.g. user@gmail.com)">
+        </div>
+        <div class="input-group">
+            <input type="password" id="login-password" placeholder="Password">
+        </div>
+        <button class="btn btn-primary" onclick="handleLogin()">Login</button>
+        <button class="btn btn-secondary" onclick="switchScreen('registration')">Go to Registration</button>
+        <button class="btn btn-secondary" style="border:none; margin-top:10px; font-size:0.85rem;" onclick="switchScreen('forgot')">Forgot Password?</button>
+    </div>
+
+    <!-- REGISTRATION SCREEN -->
+    <div id="screen-registration" class="screen">
+        <h2 class="glowing-title">Register Account</h2>
+        <div class="input-group">
+            <input type="text" id="reg-phone" placeholder="10 Digit Phone Number" maxlength="10">
+        </div>
+        <div class="input-group">
+            <input type="email" id="reg-email" placeholder="Gmail ID">
+        </div>
+        <div class="input-group">
+            <input type="password" id="reg-password" placeholder="Password">
+        </div>
+        <button class="btn btn-primary" onclick="handleRegister()">Register Now</button>
+        <button class="btn btn-secondary" onclick="switchScreen('login')">Back to Login</button>
+    </div>
+
+    <!-- FORGOT PASSWORD SCREEN -->
+    <div id="screen-forgot" class="screen">
+        <h2 class="glowing-title">Reset Password</h2>
+        <p style="color:var(--text-secondary); text-align:center; margin-bottom:20px; font-size:0.9rem;">
+            Enter your registered Gmail ID to receive a password reset link.
+        </p>
+        <div class="input-group">
+            <input type="email" id="forgot-email" placeholder="Registered Gmail ID">
+        </div>
+        <button class="btn btn-primary" onclick="handlePasswordReset()">Send Reset Link</button>
+        <button class="btn btn-secondary" onclick="switchScreen('login')">Back to Login</button>
+    </div>
+
+    <!-- KEYPAD SCREEN -->
+    <div id="screen-keypad" class="screen">
+        <h2 class="glowing-title" style="margin-bottom:15px;">Dialer</h2>
+        <div class="input-group">
+            <input type="text" id="dialer-display" readonly placeholder="Enter 10 Digits" style="text-align: center; font-size: 1.6rem; letter-spacing: 2px;">
+        </div>
+        
+        <div class="keypad-grid">
+            <div class="keypad-btn" onclick="pressKey('1')"><span class="keypad-number">1</span><span class="keypad-letters">. . .</span></div>
+            <div class="keypad-btn" onclick="pressKey('2')"><span class="keypad-number">2</span><span class="keypad-letters">ABC</span></div>
+            <div class="keypad-btn" onclick="pressKey('3')"><span class="keypad-number">3</span><span class="keypad-letters">DEF</span></div>
+            <div class="keypad-btn" onclick="pressKey('4')"><span class="keypad-number">4</span><span class="keypad-letters">GHI</span></div>
+            <div class="keypad-btn" onclick="pressKey('5')"><span class="keypad-number">5</span><span class="keypad-letters">JKL</span></div>
+            <div class="keypad-btn" onclick="pressKey('6')"><span class="keypad-number">6</span><span class="keypad-letters">MNO</span></div>
+            <div class="keypad-btn" onclick="pressKey('7')"><span class="keypad-number">7</span><span class="keypad-letters">PQRS</span></div>
+            <div class="keypad-btn" onclick="pressKey('8')"><span class="keypad-number">8</span><span class="keypad-letters">TUV</span></div>
+            <div class="keypad-btn" onclick="pressKey('9')"><span class="keypad-number">9</span><span class="keypad-letters">WXYZ</span></div>
+            <div class="keypad-btn" onclick="pressKey('*')"><span class="keypad-number">*</span><span class="keypad-letters"> </span></div>
+            <div class="keypad-btn" onclick="pressKey('0')"><span class="keypad-number">0</span><span class="keypad-letters">+</span></div>
+            <div class="keypad-btn" onclick="pressKey('#')"><span class="keypad-number">#</span><span class="keypad-letters"> </span></div>
+        </div>
+
+        <div style="display:flex; justify-content: space-around; max-width: 280px; margin: 0 auto; width:100%;">
+            <button class="control-btn" style="background:var(--neon-green); box-shadow:0 0 15px var(--neon-green);" onclick="initiateOutboundCall(false)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.01l-2.2 2.2z"/></svg>
+            </button>
+            <button class="control-btn" style="background:var(--neon-blue); box-shadow:0 0 15px var(--neon-blue);" onclick="initiateOutboundCall(true)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+            </button>
+            <button class="control-btn" style="background:rgba(255,255,255,0.1);" onclick="pressDelete()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTACTS & ONLINE USERS SCREEN -->
+    <div id="screen-contacts" class="screen">
+        <h2 class="glowing-title" style="margin-bottom:10px;">Directory</h2>
+        
+        <div class="input-group search-bar">
+            <input type="text" id="search-input" placeholder="Search saved directory numbers..." oninput="filterDirectory()">
+        </div>
+
+        <div style="display:flex; margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.1)">
+            <button id="tab-saved" class="btn" style="background:transparent; color:var(--neon-blue); border:none; margin:0; flex:1; border-bottom:2px solid var(--neon-blue);" onclick="switchTab('saved')">Saved List</button>
+            <button id="tab-online" class="btn" style="background:transparent; color:var(--text-secondary); border:none; margin:0; flex:1;" onclick="switchTab('online')">Online Saved Only</button>
+        </div>
+
+        <div class="list-container" id="directory-list">
+            <!-- Dynamically populated rows -->
+        </div>
+    </div>
+
+    <!-- AUDIO / VIDEO CALL INTERFACE OVERLAY -->
+    <div id="screen-calling" class="screen calling-screen">
+        <div class="caller-info">
+            <div class="caller-number" id="remote-identity-display">0000000000</div>
+            <div class="call-status" id="call-status-text">Connecting WebRTC Session...</div>
+        </div>
+
+        <div class="video-container" id="video-wrapper" style="display:none;">
+            <video class="remote-video" id="remoteVideo" autoplay playsinline></video>
+            <video class="local-video" id="localVideo" autoplay muted playsinline></video>
+        </div>
+
+        <div class="call-controls">
+            <button class="control-btn" id="btn-mute" onclick="toggleMute()">
+                <span>Mute</span>
+            </button>
+            <button class="control-btn" id="btn-hold" onclick="toggleHold()">
+                <span>Hold</span>
+            </button>
+            <button class="control-btn" id="btn-addcall" onclick="addCallPrompt()">
+                <span>+ Call</span>
+            </button>
+            <button class="control-btn end-call" onclick="endCallSession()">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M12 21c-4.41 0-8-3.59-8-8 0-.55-.45-1-1-1s-1 .45-1 1c0 5.52 4.48 10 10 10s10-4.48 10-10c0-.55-.45-1-1-1s-1 .45-1 1c0 4.41-3.59 8-8 8zm9.36-11.28l-2.48-2.48c-.78-.78-2.05-.78-2.83 0l-1.25 1.25c-.78.78-.78 2.05 0 2.83l1.25 1.25-5.66 5.66-1.25-1.25c-.78-.78-2.05-.78-2.83 0l-1.25 1.25c-.78.78-.78 2.05 0 2.83l2.48 2.48c1.56 1.56 4.09 1.56 5.66 0l7.07-7.07c1.56-1.57 1.56-4.1-.01-5.67z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- BOTTOM APP NAVIGATION -->
+    <div class="bottom-nav" id="app-nav-bar" style="display:none;">
+        <div class="nav-item active" id="nav-keypad" onclick="switchScreen('keypad')">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
+            Dialer
+        </div>
+        <div class="nav-item" id="nav-contacts" onclick="switchScreen('contacts')">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            Directory
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // 1. Firebase Configuration from Request
+    const firebaseConfig = {
+        apiKey: "AIzaSyBdbhSYO-nDqQ5tIehcraBq8g4RgNIciLI",
+        authDomain: "ultra-calling.firebaseapp.com",
+        projectId: "ultra-calling",
+        storageBucket: "ultra-calling.firebasestorage.app",
+        messagingSenderId: "487761265796",
+        appId: "1:487761265796:web:a855a927c43aa490deaed1"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const database = firebase.database();
+
+    // 2. Predefined 10 Mock Users Data
+    const preSavedUsers = [
+        { phone: "9876543210", email: "user1@gmail.com", name: "Satveer Premium User" },
+        { phone: "9123456780", email: "user2@gmail.com", name: "Rohan Sharma" },
+        { phone: "9234567890", email: "user3@gmail.com", name: "Amit Kumar" },
+        { phone: "9345678901", email: "user4@gmail.com", name: "Vikram Singh" },
+        { phone: "9456789012", email: "user5@gmail.com", name: "Neha Patel" },
+        { phone: "9567890123", email: "user6@gmail.com", name: "Pooja Rao" },
+        { phone: "9678901234", email: "user7@gmail.com", name: "Suresh Raina" },
+        { phone: "9789012345", email: "user8@gmail.com", name: "Deepak Chawla" },
+        { phone: "9890123456", email: "user9@gmail.com", name: "Anjali Desai" },
+        { phone: "9901234567", email: "user10@gmail.com", name: "Kabir Mehta" }
+    ];
+
+    // Global application states
+    let currentUserPhone = "";
+    let currentTab = "saved";
+    let onlineUsersList = {};
+    
+    // WebRTC Variables
+    let localStream = null;
+    let remoteStream = null;
+    let peerConnection = null;
+    let currentCallRef = null;
+    let isMuted = false;
+    let isHold = false;
+    let isVideoCallMode = false;
+
+    // 3. WebRTC Configuration with Satveer TURN Server configuration
+    const rtcConfig = {
+        iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { 
+                urls: "turn:satveer.callingapp.com:3478", 
+                username: "satveer_user", 
+                credential: "SatveerSecurePassword2026" 
+            }
+        ]
+    };
+
+    // Auto Permission Verification on Window Load
+    window.addEventListener('DOMContentLoaded', () => {
+        requestMediaPermissionsSilently();
+        monitorOnlinePresence();
+    });
+
+    async function requestMediaPermissionsSilently() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            stream.getTracks().forEach(track => track.stop());
+            console.log("Permissions pre-allowed successfully.");
+        } catch (e) {
+            console.warn("Permissions require user interaction triggers or native webview implementation.", e);
+        }
+    }
+
+    // Screen Swapping Architecture
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(`screen-${screenId}`);
+        if(target) target.classList.add('active');
+
+        // Nav active states toggle
+        if(screenId === 'keypad' || screenId === 'contacts') {
+            document.getElementById('app-nav-bar').style.display = 'flex';
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navItem = document.getElementById(`nav-${screenId}`);
+            if(navItem) navItem.classList.add('active');
+        } else {
+            document.getElementById('app-nav-bar').style.display = 'none';
+        }
+
+        if(screenId === 'contacts') {
+            renderDirectory();
+        }
+    }
+
+    function switchTab(tabName) {
+        currentTab = tabName;
+        document.getElementById('tab-saved').style.borderBottom = tabName === 'saved' ? '2px solid var(--neon-blue)' : 'none';
+        document.getElementById('tab-saved').style.color = tabName === 'saved' ? 'var(--neon-blue)' : 'var(--text-secondary)';
+        document.getElementById('tab-online').style.borderBottom = tabName === 'online' ? '2px solid var(--neon-blue)' : 'none';
+        document.getElementById('tab-online').style.color = tabName === 'online' ? 'var(--neon-blue)' : 'var(--text-secondary)';
+        renderDirectory();
+    }
+
+    // Authentic Keypad Inputs
+    function pressKey(num) {
+        const display = document.getElementById('dialer-display');
+        if(display.value.length < 10 || ['*','#'].includes(num)) {
+            display.value += num;
+        }
+    }
+
+    function pressDelete() {
+        const display = document.getElementById('dialer-display');
+        display.value = display.value.slice(0, -1);
+    }
+
+    // Authentication Layer
+    function handleLogin() {
+        const phone = document.getElementById('login-phone').value.trim();
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+
+        if(phone.length !== 10 || isNaN(phone)) {
+            alert("Please enter a valid 10-digit number.");
+            return;
+        }
+        if(!email.includes('@')) {
+            alert("Please enter a valid Gmail address.");
+            return;
+        }
+
+        // Standard Sign-in mapping directly using email
+        auth.signInWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                currentUserPhone = phone;
+                goOnline(phone);
+                switchScreen('keypad');
+            })
+            .catch((error) => {
+                alert("Login Error: " + error.message);
+            });
+    }
+
+    function handleRegister() {
+        const phone = document.getElementById('reg-phone').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value;
+
+        if(phone.length !== 10 || isNaN(phone)) {
+            alert("Registration requires a 10 digit identifier.");
+            return;
+        }
+
+        auth.createUserWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                // Map the phone mapping context inside firebase database realtime nodes
+                database.ref('users/' + phone).set({
+                    email: email,
+                    phone: phone,
+                    uid: userCredential.user.uid
+                });
+                alert("Account created successfully!");
+                switchScreen('login');
+            })
+            .catch((error) => {
+                alert("Registration Failed: " + error.message);
+            });
+    }
+
+    function handlePasswordReset() {
+        const email = document.getElementById('forgot-email').value.trim();
+        if(!email) {
+            alert("Please input your registered Gmail account.");
+            return;
+        }
+        auth.sendPasswordResetEmail(email)
+            .then(() => {
+                alert("Password reset email sent! Check your inbox.");
+                switchScreen('login');
+            })
+            .catch(err => alert(err.message));
+    }
+
+    // Realtime Sync Strategy
+    function goOnline(phone) {
+        const statusRef = database.ref(`status/${phone}`);
+        statusRef.set({
+            status: "online",
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        });
+        statusRef.onDisconnect().remove();
+        listenForIncomingCalls(phone);
+    }
+
+    function monitorOnlinePresence() {
+        database.ref('status').on('value', snapshot => {
+            onlineUsersList = snapshot.val() || {};
+            if(document.getElementById('screen-contacts').classList.contains('active')) {
+                renderDirectory();
+            }
+        });
+    }
+
+    // Directory Rendering Interface
+    function renderDirectory() {
+        const container = document.getElementById('directory-list');
+        container.innerHTML = "";
+        const query = document.getElementById('search-input').value.toLowerCase();
+
+        preSavedUsers.forEach(user => {
+            const isOnline = onlineUsersList[user.phone] !== undefined;
+            
+            // Tab filtering criteria logic
+            if(currentTab === 'online' && !isOnline) return;
+            
+            // Search text filter
+            if(query && !user.name.toLowerCase().includes(query) && !user.phone.includes(query)) return;
+
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <div>
+                    <span class="user-status ${isOnline ? 'status-online' : ''}" style="${!isOnline ? 'background:#555;color:#555;':''}"></span>
+                    <strong>${user.name}</strong><br>
+                    <small style="color:var(--text-secondary); margin-left:18px;">${user.phone}</small>
+                </div>
+                <div class="call-actions">
+                    <button onclick="directCall('${user.phone}', false)">📞</button>
+                    <button onclick="directCall('${user.phone}', true)">📹</button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function filterDirectory() {
+        renderDirectory();
+    }
+
+    function directCall(phone, isVideo) {
+        document.getElementById('dialer-display').value = phone;
+        initiateOutboundCall(isVideo);
+    }
+
+    // WebRTC Realtime Interactive Call Engine
+    async function initiateOutboundCall(isVideo) {
+        const targetPhone = document.getElementById('dialer-display').value.trim();
+        if(targetPhone.length !== 10) {
+            alert("Dial targets must consist of precisely 10 numerical digits.");
+            return;
+        }
+        if(targetPhone === currentUserPhone) {
+            alert("Self-dialing loops are blocked.");
+            return;
+        }
+
+        isVideoCallMode = isVideo;
+        setupCallingUI(targetPhone, "Calling out...");
+        
+        currentCallRef = database.ref(`calls/${targetPhone}`).push();
+        
+        await startMediaStreams();
+        setupPeerConnection(targetPhone);
+
+        // WebRTC Offer Generation
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        currentCallRef.set({
+            type: "offer",
+            from: currentUserPhone,
+            offer: {
+                type: offer.type,
+                sdp: offer.sdp
+            },
+            isVideo: isVideo
+        });
+
+        // Listen for answers or termination
+        currentCallRef.on('value', snapshot => {
+            const data = snapshot.val();
+            if(data && data.type === 'answer') {
+                document.getElementById('call-status-text').innerText = "Connected";
+                if(!peerConnection.currentRemoteDescription) {
+                    peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                }
+            }
+        });
+
+        // Track ICE candidates
+        peerConnection.onicecandidate = event => {
+            if(event.candidate && currentCallRef) {
+                currentCallRef.child('iceCandidates').push(event.candidate.toJSON());
+            }
+        };
+
+        // Listen for remote ice candidates
+        currentCallRef.child('remoteCandidates').on('child_added', snapshot => {
+            const candidate = new RTCIceCandidate(snapshot.val());
+            peerConnection.addIceCandidate(candidate);
+        });
+    }
+
+    function listenForIncomingCalls(myPhone) {
+        database.ref(`calls/${myPhone}`).on('child_added', async snapshot => {
+            const callData = snapshot.val();
+            if (callData && callData.type === 'offer') {
+                currentCallRef = snapshot.ref;
+                isVideoCallMode = callData.isVideo;
+                
+                if(confirm(`Incoming ${isVideoCallMode ? 'Video' : 'Audio'} call from ${callData.from}. Accept?`)) {
+                    setupCallingUI(callData.from, "Connecting...");
+                    await startMediaStreams();
+                    setupPeerConnection(callData.from);
+
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+
+                    currentCallRef.update({
+                        type: "answer",
+                        answer: {
+                            type: answer.type,
+                            sdp: answer.sdp
+                        }
+                    });
+
+                    // Listen for updates or remote ICE candidates
+                    currentCallRef.child('iceCandidates').on('child_added', snap => {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(snap.val()));
+                    });
+                    
+                    peerConnection.onicecandidate = event => {
+                        if(event.candidate) {
+                            currentCallRef.child('remoteCandidates').push(event.candidate.toJSON());
+                        }
+                    };
+                    document.getElementById('call-status-text').innerText = "Connected";
+                } else {
+                    snapshot.ref.remove();
+                }
+            }
+        });
+
+        database.ref(`calls/${myPhone}`).on('child_removed', () => {
+            cleanupCallSession();
+        });
+    }
+
+    async function startMediaStreams() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: isVideoCallMode
+            });
+            
+            if(isVideoCallMode) {
+                document.getElementById('video-wrapper').style.display = 'block';
+                document.getElementById('localVideo').srcObject = localStream;
+            } else {
+                document.getElementById('video-wrapper').style.display = 'none';
+            }
+        } catch(e) {
+            console.error("Stream initialization error:", e);
+            alert("Hardware accessibility initialization error for Camera/Microphone.");
+        }
+    }
+
+    function setupPeerConnection(remotePhone) {
+        peerConnection = new RTCPeerConnection(rtcConfig);
+        
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        peerConnection.ontrack = event => {
+            if(isVideoCallMode) {
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            }
+        };
+    }
+
+    function setupCallingUI(identity, message) {
+        document.getElementById('remote-identity-display').innerText = identity;
+        document.getElementById('call-status-text').innerText = message;
+        
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-calling').classList.add('active');
+        document.getElementById('screen-calling').style.display = 'flex';
+    }
+
+    function toggleMute() {
+        isMuted = !isMuted;
+        localStream.getAudioTracks()[0].enabled = !isMuted;
+        const btn = document.getElementById('btn-mute');
+        btn.classList.toggle('active', isMuted);
+        btn.querySelector('span').innerText = isMuted ? "Unmute" : "Mute";
+    }
+
+    function toggleHold() {
+        isHold = !isHold;
+        localStream.getAudioTracks()[0].enabled = !isHold;
+        if(localStream.getVideoTracks().length > 0) {
+            localStream.getVideoTracks()[0].enabled = !isHold;
+        }
+        const btn = document.getElementById('btn-hold');
+        btn.classList.toggle('active', isHold);
+        btn.querySelector('span').innerText = isHold ? "Resume" : "Hold";
+        document.getElementById('call-status-text').innerText = isHold ? "On Hold" : "Connected";
+    }
+
+    function addCallPrompt() {
+        const newTarget = prompt("Enter 10 Digit Number to invite/add to current pool session:");
+        if(newTarget && newTarget.length === 10) {
+            alert(`Inviting secondary bridge targeted at ${newTarget}...`);
+        }
+    }
+
+    function endCallSession() {
+        if(currentCallRef) {
+            currentCallRef.remove();
+        }
+        cleanupCallSession();
+    }
+
+    function cleanupCallSession() {
+        if(localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        if(peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        document.getElementById('screen-calling').style.display = 'none';
+        switchScreen('keypad');
+    }
+</script>
+
+</body>
+</html>
